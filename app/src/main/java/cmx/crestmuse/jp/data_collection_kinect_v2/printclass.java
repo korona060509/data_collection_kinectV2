@@ -18,22 +18,24 @@ public class printclass  {
     //MainActivity mainActivity = new MainActivity();
     /*コンストラクタ呼び出し時に書き込むファイルを生成する*/
     public printclass() {
+    }
+    public void file_setup(String subject_name){
         try {      /*実験日時をファイル名に指定するに確定*/
-                    Date date = new Date();
+            Date date = new Date();
                     /*ファイルの書き込み先と生成するファイル名の決定(勝手に変えてください)*/
-                    String path = Environment.getExternalStorageDirectory().getPath() + "/Android/data/trainingdata/"+date.toString()+"_sensordata.txt";
-                    String path2 = Environment.getExternalStorageDirectory().getPath() + "/Android/data/trainingdata/"+date.toString()+"_opticalflow.txt";
+            String path = Environment.getExternalStorageDirectory().getPath() + "/Android/data/trainingdata/"+date.toString()+"_"+subject_name+"_sensordata.txt";
+            String path2 = Environment.getExternalStorageDirectory().getPath() + "/Android/data/trainingdata/"+date.toString()+"_"+subject_name+"_opticalflow.txt";
 
-                    File file = new File(path);
-                    File file2 = new File(path2);
+            File file = new File(path);
+            File file2 = new File(path2);
                     /*書き込みファイルを生成*/
-                    file.createNewFile();
-                    file2.createNewFile();
-                    out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), "SHIFT_JIS"));
-                    out2 = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file2), "SHIFT_JIS"));
+            file.createNewFile();
+            file2.createNewFile();
+            out = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file), "SHIFT_JIS"));
+            out2 = new PrintWriter(new OutputStreamWriter(new FileOutputStream(file2), "SHIFT_JIS"));
 
-                    out.print("移動距離(x,y,z),速度(x,y,z),加速度(x,y,z),ジャイロ(x,y,z),回転軌道(x,y,z),重力加速度y\r\n");
-                    out2.print("オプティカルフロ-y軸,時間\r\n");
+            out.print("移動距離(x,y,z),速度(x,y,z),加速度(x,y,z),ジャイロ(x,y,z),回転軌道(x,y,z),重力加速度y\r\n");
+            out2.print("オプティカルフロ-y軸,時間\r\n");
         }catch(IOException e){
 
         }

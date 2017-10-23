@@ -19,6 +19,7 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import org.opencv.android.BaseLoaderCallback;
@@ -100,7 +101,8 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
 
     public TextView orientationText1;
     public TextView orientationText2;
-    public TextView heightText;
+    public TextView name_box;
+    public String subject_name;
 
 
 
@@ -110,7 +112,9 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
         setContentView(R.layout.activity_main);
         orientationText1 = (TextView) findViewById(R.id.Orientation1);
         orientationText2 = (TextView) findViewById(R.id.Orientation2);
-        heightText = (TextView) findViewById(R.id.heightText);
+        name_box = (EditText) findViewById(R.id.Name_Box);
+
+        subject_name = "example";
         /*カメラviewの処理*/
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         mOpenCvCameraView = (CameraBridgeViewBase) findViewById(R.id.camera_view);
@@ -119,9 +123,10 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
         /*背景楽曲を選択*/
         mediaPlayer = MediaPlayer.create(this, R.raw.practicedata);
 
+
         /*接続リセットボタン:bluetooth接続状態のリセットしてアプリをリスタートする*/
-        final Button resetBtn = (Button) findViewById(R.id.resetBtn);
-        resetBtn.setOnClickListener(new View.OnClickListener() {
+        final Button resetButton = (Button) findViewById(R.id.resetBtn);
+        resetButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 restart();
@@ -134,25 +139,40 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
         *3. 背景楽曲再生
         */
         final Button SignalButton = (Button)findViewById(R.id.ShakeButton);
+
+        final Button getText_Btn = (Button) findViewById(R.id.getText_btn);
+        getText_Btn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                subject_name = name_box.getText().toString();
+                orientationEstimater.printfile_setup(subject_name);
+                if (SignalButton.getVisibility() == View.INVISIBLE) {
+                    // 表示なら非表示する
+                    SignalButton.setVisibility(View.VISIBLE);
+                }
+            }
+        });
+        /*playボタンに関する処理*/
         SignalButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (resetBtn.getVisibility() == View.VISIBLE) {
-                    // 表示なら非表示する
-                    resetBtn.setVisibility(View.INVISIBLE);
-                }
-                if (SignalButton.getVisibility() == View.VISIBLE) {
-                    // 表示なら非表示する
-                    SignalButton.setVisibility(View.INVISIBLE);
-                }
+                if(subject_name != "example") {
+                    if (resetButton.getVisibility() == View.VISIBLE) {
+                        // 表示なら非表示する
+                        resetButton.setVisibility(View.INVISIBLE);
+                    }
+                    if (SignalButton.getVisibility() == View.VISIBLE) {
+                        // 表示なら非表示する
+                        SignalButton.setVisibility(View.INVISIBLE);
+                    }
                 /*処理手順3はBluetoothTask.javaに飛ぶ*/
-                bluetoothTask.signalsend();
+                    bluetoothTask.signalsend();
 
                 /*処理手順4はOrientationEstimater.javaに飛ぶ*/
-                orientationEstimater.flagset();
-                Camera_flag = 1;
-                mediaPlayer.start();
-
+                    orientationEstimater.flagset();
+                    Camera_flag = 1;
+                    mediaPlayer.start();
+                }
                 /*処理手順Extra:アプリ開始時にprintclassのコンストラクタを呼びだしで書き込むファイルを生成printclass.javaを参照*/
 
                 /*実験の前準備処理はここまでで終了，残りはOrientationEstimater.java内のセンサー値の処理部分参照*/
@@ -174,9 +194,9 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
                         orientationEstimater.flagstop(DelayTime1,DelayTime2);
                         Log.d("MediaPlayer", "startTime="+orientationEstimater.startTime+",endTime="+bluetoothTask.EndTime_send);
 
-                        if (resetBtn.getVisibility() == View.INVISIBLE) {
+                        if (resetButton.getVisibility() == View.INVISIBLE) {
                             // 非表示されている時に表示に
-                            resetBtn.setVisibility(View.VISIBLE);
+                            resetButton.setVisibility(View.VISIBLE);
                         }
                         if (SignalButton.getVisibility() == View.INVISIBLE) {
                             // 非表示されている時に表示に
@@ -196,14 +216,12 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
 
 
         });
-
         final Handler handler = new Handler();
         handler.post(new Runnable() { /*UI部分の操作のためにスレッドを送る*/
             @Override
             public void run() {/*y軸の高さを画面に表示(特にデータとるのに必要ないので消してもOK)*/
                 ((TextView) findViewById(R.id.Orientation1)).setText(""+orientationEstimater.fusedOrientation[1]*180/Math.PI);
                 ((TextView) findViewById(R.id.Orientation2)).setText(""+orientationEstimater.fusedOrientation[2]*180/Math.PI);
-                ((TextView) findViewById(R.id.heightText)).setText(""+orientationEstimater.posVec.values[1]);
 
                 handler.postDelayed(this, 30);
             }

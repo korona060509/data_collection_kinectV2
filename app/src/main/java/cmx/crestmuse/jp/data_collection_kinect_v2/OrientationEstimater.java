@@ -69,7 +69,7 @@ import java.util.TimerTask;
 
         /*追加変数*/
         public float[] fusedOrientation = new float[3];
-        public static final int TIME_CONSTANT = 30;
+        public static final int TIME_CONSTANT = 10;
         public static final float FILTER_COEFFICIENT = 0.98f;
         private Timer fuseTimer = new Timer();
         private float[] gyroMatrix = new float[9];
@@ -106,6 +106,9 @@ import java.util.TimerTask;
             printclass.Printclose(DelayTime1,DelayTime2);
         }
 
+        public void printfile_setup(String subject_name){
+            printclass.file_setup(subject_name);
+        }
         /*処理手順4:
         * ファイル書き込みを開始するフラグをたてる
         * 計測開始時間を決定
@@ -264,7 +267,7 @@ import java.util.TimerTask;
                     書き込み処理自体はprintclass.javaで行うのでそちらを参照
                     */
                     if (startTime != 0 && secondTime < 70000 && flag == 1 && flag2 == 0) {
-                        printclass.Printfile(flag, posVec.values[0], posVec.values[1], posVec.values[2], vVec.values[0], vVec.values[1], vVec.values[2], v2, accVec.values[0], accVec.values[1], accVec.values[2],gyroVec.values[0],gyroVec.values[1],gyroVec.values[2],rotation_vec[0],rotation_vec[1],rotation_vec[2], Gy, secondTime);
+                        printclass.Printfile(flag, posVec.values[0], posVec.values[1], posVec.values[2], vVec.values[0], vVec.values[1], vVec.values[2], v2, accVec.values[0], accVec.values[1], accVec.values[2],gyro[0],gyro[1],gyro[2],rotation_vec[0],rotation_vec[1],rotation_vec[2], Gy, secondTime);
                     }
                         /*速度の記録を更新*/
                         vVec2.values[0] = vVec.values[0];
