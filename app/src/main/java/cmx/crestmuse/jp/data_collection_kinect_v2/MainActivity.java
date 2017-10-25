@@ -50,7 +50,8 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
     // オプティカルフロー用
     private Mat image_prev, image_next;
     private MatOfPoint2f pts_prev, pts_next;
-    private int Camera_flag = 0;
+    //カメラが起動中かのフラグ
+    private boolean isCameraOpened = false;
 
     // OpenCVライブラリのロード
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
@@ -72,6 +73,7 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
         }
     };
 
+    public double move_total_x = 0;
     public double move_total_y = 0;
     private int count = 0;
 
@@ -170,10 +172,10 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
 
                 /*処理手順4はOrientationEstimater.javaに飛ぶ*/
                     orientationEstimater.flagset();
-                    Camera_flag = 1;
+                    isCameraOpened = true;
                     mediaPlayer.start();
                 }
-                /*処理手順Extra:アプリ開始時にprintclassのコンストラクタを呼びだしで書き込むファイルを生成printclass.javaを参照*/
+                /*処理手順Extra:アプリ開始時にPrintClassのコンストラクタを呼びだしで書き込むファイルを生成printclass.javaを参照*/
 
                 /*実験の前準備処理はここまでで終了，残りはOrientationEstimater.java内のセンサー値の処理部分参照*/
 
@@ -188,11 +190,10 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
                         Delay1：通信の往復にかかった時間
                         Delay2：通信終了からタイマー開始までの時間
                          */
-
                         long DelayTime1 = bluetoothTask.EndTime_send - bluetoothTask.StartTime_send;
                         long DelayTime2 = orientationEstimater.startTime - bluetoothTask.EndTime_send;
-                        orientationEstimater.flagstop(DelayTime1,DelayTime2);
-                        Log.d("MediaPlayer", "startTime="+orientationEstimater.startTime+",endTime="+bluetoothTask.EndTime_send);
+                        orientationEstimater.stopWiter(DelayTime1,DelayTime2);
+                        Log.d("ddddttttttt", "startTime="+orientationEstimater.startTime+",endTime="+bluetoothTask.EndTime_send);
 
                         if (resetButton.getVisibility() == View.INVISIBLE) {
                             // 非表示されている時に表示に
@@ -202,14 +203,8 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
                             // 非表示されている時に表示に
                             SignalButton.setVisibility(View.VISIBLE);
                         }
-                        /*
-                        bluetoothTask.init();
-                        bluetoothTask.doConnect(device);
-                        bluetoothTask.signalsend();
-*/
                         Log.v("MediaPlayer", "onCompletion");
-                        Camera_flag = 0;
-
+                        isCameraOpened = false;
                     }
                 });
             }
@@ -241,9 +236,14 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
         showDialog(DEVICES_DIALOG);
     }
 
-    //アプリ終了時に接続をサーバーとの接続を閉じる
+    //アプリ終了時にサーバーとの接続を閉じる
     @Override
     protected void onDestroy() {
+        if(orientationEstimater.canWrite) {
+            long DelayTime1 = bluetoothTask.EndTime_send - bluetoothTask.StartTime_send;
+            long DelayTime2 = orientationEstimater.startTime - bluetoothTask.EndTime_send;
+            orientationEstimater.stopWiter(DelayTime1, DelayTime2);
+        }
         bluetoothTask.doClose();
         super.onDestroy();
     }
@@ -255,9 +255,6 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
         this.finish();
         this.startActivity(intent);
     }
-
-
-
 
     // カメラ開始時
     public void onCameraViewStarted(int width, int height) {
@@ -274,7 +271,6 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
     // 画像取得時
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         // 縮小
-
         image = inputFrame.rgba();
         Imgproc.resize(image, image_small, image_small.size(), 0, 0, Imgproc.INTER_NEAREST);
 
@@ -284,10 +280,12 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
 
         // 特徴点抽出
         MatOfPoint features = new MatOfPoint();
-        Imgproc.goodFeaturesToTrack(gray, features, 50, 0.01, 10); //Imgproc.goodFeaturesToTrack(image(画像), vector&corner(検出されたコーナーの出力), int(出力するコーナーの最大数), double(コーナーの品質度), )
+        //Imgproc.goodFeaturesToTrack(image(画像), vector&corner(検出されたコーナーの出力), int(出力するコーナーの最大数), double(コーナーの品質度), )
+        Imgproc.goodFeaturesToTrack(gray, features, 50, 0.01, 10);
         Log.i(TAG, "called onCreate");
+
         // 特徴点が見つかった
-        if (features.total() > 0 && Camera_flag == 1) {
+        if (features.total() > 0 && isCameraOpened == true) {
             // 過去のデータが存在する
             if (pts_prev.total() > 0) {
                 // 現在のデータ
@@ -307,9 +305,9 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
                     List<Point> list_features_next = pts_next.toList();
                     double scale_x = image.cols() / image_small.cols();
                     double scale_y = image.rows() / image_small.rows();
-                    //double move_x = 0;
+                    double move_x = 0;
                     double move_y = 0;
-                    //double move_average_x = 0;
+                    double move_average_x = 0;
                     double move_average_y = 0;
                     count = 0;
                     for (int i = 0; i < flow_num; i++) {
@@ -323,7 +321,7 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
                             p2.y = list_features_next.get(i).y * scale_y;
                             //Core.circle(image, p2, 3, new Scalar(255,255,0), -1, 8, 0 );
 
-                            //move_x = p2.x - p1.x;
+                            move_x = p2.x - p1.x;
                             move_y = p2.y - p1.y;
                             // フロー描画
                             //int thickness = 5;
@@ -331,12 +329,20 @@ public class MainActivity extends Activity implements SensorEventListener,Camera
                             count++;
                         }
                     }
+                    move_average_x = move_x / count;
                     move_average_y = move_y / count;
-                    //bf_move_total_y = move_total_y;
-                    if(!Double.isNaN(move_average_y))
+                    if(isCameraOpened == true) {
+                        orientationEstimater.printFlow(move_average_x,move_average_y);
+                    }
+                    /*
+                    if(!Double.isNaN(move_average_y)) {
+                        move_total_x += move_average_x;
                         move_total_y += move_average_y;
-                    if(Camera_flag == 1)
+                    }
+                    if(isCameraOpened == true) {
                         orientationEstimater.print(move_total_y);
+                    }
+                    */
                 }
             }
             //Imgproc.line(image, new Point(50,100), new Point(150,300), new Scalar(0,255,0), 5);

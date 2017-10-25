@@ -94,6 +94,7 @@ public class BluetoothTask {
             btOut.write("シグナル".getBytes());
             btIn.read(buff);
             EndTime_send = System.currentTimeMillis();
+            Log.i("ddddd",String.valueOf(EndTime_send)+"ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd");
         }catch (Throwable t) {
             doClose();
         }
@@ -228,5 +229,4 @@ public class BluetoothTask {
         }
 
     }
-
 }

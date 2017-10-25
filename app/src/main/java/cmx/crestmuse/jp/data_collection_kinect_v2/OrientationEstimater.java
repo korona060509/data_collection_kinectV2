@@ -17,7 +17,7 @@ import java.util.TimerTask;
     * センサー処理手順x:という感じで書いておくので検索してください
     * 基本的に各センサーの値が更新されるごとに自動処理される(5ms秒間隔くらい？)*/
         private float currentPosition;
-        private printclass printclass = new printclass();
+        private PrintClass printClass = new PrintClass();
         public float Gx;
         public float Gy;
         public float Gz;
@@ -27,18 +27,12 @@ import java.util.TimerTask;
         public float[] rotateM2 = new float[9];
         private float[] accMagOrientation = new float[3];
 
-        // configurations
-        //private boolean landscape = true; // swapXY
-    /*
-        private boolean zeroSnap = true;
-        private boolean applyPressureHeight = false;
-*/
-
         private float[] mag = new float[3];
         private float[] accel = new float[3];
         private float[] rotation_vec = new float[3];
         private long lastAccelTime = 0;
         private long resetTime = 0;
+
         public final Vector3f vVec2 = new Vector3f();
         public final Vector3f accVec = new Vector3f();
         public final Vector3f vVec = new Vector3f();
@@ -50,22 +44,12 @@ import java.util.TimerTask;
         public long startTime = 0;
         public long currentTime = 0;
         private long secondTime = 0;
-        /*
-        private float pressureHeightErrorHigh = 250f; // mm
-        public float pressureHeightCurrent = 0; // mm (from HeightBase)
-        private float pressureHeightErrorLow = 250f; // mm
-        private float pressureHeightErrorFactor = 0.000f; // m/s
-        private float pressureHeightBase = 1013; // hPa
-        private long pressureHeightErrorBaseTime = 0; // ns
-        private final float[] pressHistory = new float[16];
-        private int pressHistoryCount = 0;
-*/
+
         private final float[] accHistory = new float[8];
         private int accHistoryCount = 0;
 
         public int eventCount = 0;
-        public int flag = 0;
-        public int flag2 = 0;
+        public boolean canWrite = false;
 
         /*追加変数*/
         public float[] fusedOrientation = new float[3];
@@ -78,8 +62,9 @@ import java.util.TimerTask;
         private static final float NS2S = 1.0f / 1000000000.0f;
         private float timestamp;
         private boolean initState = true;
+
         public OrientationEstimater() {
-            reset();
+            initSensorValue();
             fuseTimer.scheduleAtFixedRate(new calculateFusedOrientationTask(),
                     1000, TIME_CONSTANT);
             gyroMatrix[0] = 1f; gyroMatrix[1] = 0f; gyroMatrix[2] = 0f;
@@ -87,80 +72,47 @@ import java.util.TimerTask;
             gyroMatrix[6] = 0f; gyroMatrix[7] = 0f; gyroMatrix[8] = 1f;
         }
 
-        public void reset() { /*センサー値の初期化*/
+        //センサー値の初期化
+        public void initSensorValue() {
             Log.d("OrientationEstimater", "reset");
-            resetTime = System.currentTimeMillis(); /*現在の時間を返す*/
+            resetTime = System.currentTimeMillis(); //現在の時間を返す
             posVec.set(0, 0, 0);
             vVec.set(0, 0, 0);
             vVec2.set(0, 0, 0);
             accVec.set(0, 0, 0);
-
         }
 
-        /*背景楽曲終了時の処理:
-        * ファイル書き込みを終了しファイルを閉じる
-        */
-        public void flagstop(long DelayTime1,long DelayTime2) {
-            flag = 0;
-            flag2 = 0;
-            printclass.Printclose(DelayTime1,DelayTime2);
+        //背景楽曲終了時の処理:ファイル書き込みを終了しファイルを閉じる
+        public void stopWiter(long DelayTime1,long DelayTime2) {
+            canWrite = false;
+            printClass.closeWriter(DelayTime1,DelayTime2);
         }
 
         public void printfile_setup(String subject_name){
-            printclass.file_setup(subject_name);
+            printClass.setFile(subject_name);
         }
+
         /*処理手順4:
         * ファイル書き込みを開始するフラグをたてる
         * 計測開始時間を決定
         * センサー値を初期化
         * */
         public void flagset() {
-            if(flag == 0 && flag2 == 0) {
-                flag = 1;
+            //書き込みフラグがfalseならtrueをセット
+            if(!canWrite) {
+                canWrite = true;
                 startTime = System.currentTimeMillis();
-                reset();
+                Log.i("ddddd",String.valueOf(startTime)+"ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd");
+                initSensorValue();
             }
         }
 
-        public void print(double op){
-            printclass.print_flow(op , secondTime);
+        public void printFlow(double opFlowX, double opFlowY){
+            printClass.writeFlow(secondTime, opFlowX, opFlowY);
     }
 
-        /**
-         * current orientation array If require matrix of OpenGL, it is necessary to
-         * rotate in the following order: 1. roll 2. pitch 3. yaw
-         *
-         * @return float array [x,y,z]
-         */
-
-
-        /**
-         * Current rotation matrix.
-         *
-         * @return
-         */
-
-
-        /**
-         * @return float array [x,y,z] unit:mm
-         */
-        /*
-        public float getPosition() {
-            outputPosition[0] = position[0] + posVec.values[0];
-            outputPosition[1] = position[1] + posVec.values[1];
-            outputPosition[2] = position[2] + posVec.values[2];
-
-            currentPosition = outputPosition[1];
-
-
-            return currentPosition;
-        }
-*/
-
+        //センサー処理手順1:加速度センサーの値から重力加速度センサーの値を引くことで加速度のみを抽出
         public void onSensorEvent(SensorEvent event) {
-            /*センサー処理手順1:
-            * 加速度センサーの値から重力加速度センサーの値を引くことで加速度のみを抽出
-            */
             if (event.sensor.getType() == Sensor.TYPE_LINEAR_ACCELERATION) {
                 accVec.values[0] = event.values[0];
                 accVec.values[1] = event.values[1];
@@ -263,38 +215,19 @@ import java.util.TimerTask;
                     v2 = vVec.values[1] - vVec2.values[1];
                     eventCount++;
 
-                    /*センサー処理手順5:記録したセンサー値をファイル書き込み
-                    書き込み処理自体はprintclass.javaで行うのでそちらを参照
-                    */
-                    if (startTime != 0 && secondTime < 70000 && flag == 1 && flag2 == 0) {
-                        printclass.Printfile(flag, posVec.values[0], posVec.values[1], posVec.values[2], vVec.values[0], vVec.values[1], vVec.values[2], v2, accVec.values[0], accVec.values[1], accVec.values[2],gyro[0],gyro[1],gyro[2],rotation_vec[0],rotation_vec[1],rotation_vec[2], Gy, secondTime);
+                    // センサー処理手順5:PrintClassから記録したセンサー値をファイル書き込み
+                    if (startTime != 0 && secondTime < 70000 && canWrite) {
+                        printClass.writeSensor(posVec, vVec, v2,
+                                accVec,
+                                gyro,
+                                rotation_vec,
+                                gravity,
+                                secondTime);
                     }
                         /*速度の記録を更新*/
                         vVec2.values[0] = vVec.values[0];
                         vVec2.values[1] = vVec.values[1];
                         vVec2.values[2] = vVec.values[2];
-
-                    // Log.d("Sensor", "TYPE_PRESSURE pressureHeightCurrent: " + pressureHeightCurrent + ", " + posVec.values[1]);
-                    /* 気圧センサーを使った処理，参考にしたプログラムに元々あった処理だが気圧センサーを使わないので凍結
-                    if (pressureHeightErrorBaseTime > 0 && applyPressureHeight) {
-                        float eh = pressureHeightErrorHigh + pressureHeightErrorFactor * ((event.timestamp - pressureHeightErrorBaseTime) * 0.000001f);
-                        float el = pressureHeightErrorLow + pressureHeightErrorFactor * ((event.timestamp - pressureHeightErrorBaseTime) * 0.000001f);
-                        if (posVec.values[1] > pressureHeightCurrent + eh) {
-                            posVec.values[1] += (pressureHeightCurrent + eh - posVec.values[1]) * 0.1;
-                        /*if (vVec.values[1] > 0) {
-                            vVec.values[1] -= Math.abs(vVec.values[1]) * 0.3f;
-                        }*/
-                    /*
-                        }
-                        if (posVec.values[1] < pressureHeightCurrent - el) {
-                            posVec.values[1] += (pressureHeightCurrent - el - posVec.values[1]) * 0.1;
-                       /* if (vVec.values[1] < 0) {
-                            vVec.values[1] += Math.abs(vVec.values[1]) * 0.3f;
-                        }*/
-                       /*
-                        }
-                    }
-                    */
                 }
                 //センサー値更新時間を更新
                 lastAccelTime = event.timestamp;
@@ -308,71 +241,17 @@ import java.util.TimerTask;
                 Gy = event.values[1];
                 Gz = event.values[2];
                 gravity.set(Gx, Gy, Gz);
-            /*
-            Log.d("Sensor", "gravity.length="+gravity.length());*/
             } else if (event.sensor.getType() == Sensor.TYPE_GYROSCOPE) { /*処理ジャイロセンサーでスマートフォンの回転量を計測する*/
-                /*if (lastGyroTime > 0) {
-                    float dt = (event.timestamp - lastGyroTime) * 0.000000001f;
-                    gyroVec.set(event.values[0],event.values[1],event.values[2]);
-                    Matrix.rotateM(rotationMatrix, 0, gyroVec.length() * dt * 180 / PI, gyroVec.array()[0], gyroVec.array()[1], gyroVec.array()[2]);
-                    posIntegretedError += gyroVec.length() * dt * 5.0f; // TODO: error ratio control.
-
-                }
-                accVec.set(accVecN.values);
-                accVec.normalize();
-                lastGyroTime = event.timestamp;*/
                 gyroFunction(event);
-            }
-
-            else if (event.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR) {
+            }else if (event.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR) {
                 System.arraycopy(event.values,0,rotation_vec,0,rotation_vec.length);
-                /*
-                float[] deltaRotationVector = new float[4];
-                float[] values = new float[5];
-                float[] deltaRotationMatrix = new float[9];
-                deltaRotationVector[0] = event.values[0];
-                deltaRotationVector[1] = event.values[1];
-                deltaRotationVector[2] = event.values[2];
-                deltaRotationVector[3] = event.values[3];
-                SensorManager.getRotationMatrixFromVector(deltaRotationMatrix, deltaRotationVector);
-                SensorManager.getOrientation(deltaRotationMatrix,values);
-                //Log.d("OrientationEstimater",""+values[0]);
-                //Log.d("OrientationEstimater",""+values[1]);
-                //Log.d("OrientationEstimater",""+values[2]);
-                */
             }
             else if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER){
                 System.arraycopy(event.values,0,accel,0,accel.length);
-                //accel[0] = event.values[0];
-                //accel[1] = event.values[1];
-                //accel[2] = event.values[2];
                 calculateAccMagOrientation();
             }
-
-
-            // adjust ground vector.
-            /*センサー処理手順6:ジャイロセンサーの値を使って加速度の値を修正するセクション
-            * この部分については処理の理解が不十分なところがあるんで先輩のジャイロを使って加速度を修正するように作り直していただきたいです．
-            */
-            /*
-            if (gyroVec.length() < 0.3f && Math.abs(accVecN.length() - Gy) < 0.5f) {
-                // estimated ground vec.
-                Matrix.multiplyMV(tmpVec.array(), 0, rotationMatrix, 0, accVec.values, 0);
-                float theta = (float) Math.acos(tmpVec.dot(gravityVecI));
-                if (theta > 0) {
-                    float[] cross = tmpVec.cross(gravityVecI).normalize().array();
-                    float factor = (System.currentTimeMillis() - resetTime < 500) ? 0.9f : 0.0005f;
-
-                    Matrix.rotateM(rotationMatrix, 0, theta * 180 / PI * factor, cross[0], cross[1], cross[2]);
-                    Matrix.setRotateM(rotationMatrix_t1, 0, theta * 180 / PI * factor, cross[0], cross[1], cross[2]);
-                    Matrix.multiplyMM(rotationMatrix_t2, 0, rotationMatrix_t1, 0, rotationMatrix, 0);
-                    float tm[] = rotationMatrix_t2;
-                    rotationMatrix_t2 = rotationMatrix;
-                    rotationMatrix = tm;
-                }
-            }
-            */
         }
+
     /*傾きを計測するための関数一覧*/
     public void calculateAccMagOrientation() {
         if(SensorManager.getRotationMatrix(rotateM, null, accel, mag)) {
